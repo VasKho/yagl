@@ -1,7 +1,7 @@
 package yagl_test
 
 import (
-	"github.com/yagl"
+	"github.com/VasKho/yagl"
 	"testing"
 )
 
