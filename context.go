@@ -30,22 +30,18 @@ func (context Context) GetSize() int {
 
 // Get node by identifier
 func (context Context) GetNode(identifier string, el_type int) *Node {
-	hash := genHash(identifier)
+	hash := genHash(identifier, el_type)
 	if node, ok := context.nodes[hash]; ok {
-		if el_type == node.el_type {
-			return node
-		}
+		return node
 	}
 	return &Node{}
 }
 
 // Get node address by identifier
 func (context Context) GetNodeAddr(identifier string, el_type int) string {
-	hash := genHash(identifier)
-	if node, ok := context.nodes[hash]; ok {
-		if el_type == node.el_type {
-			return hash
-		}
+	hash := genHash(identifier, el_type)
+	if _, ok := context.nodes[hash]; ok {
+		return hash
 	}
 	return ""
 }

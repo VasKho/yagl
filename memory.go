@@ -24,7 +24,9 @@ const (
 	Class_t  int = 0x100
 )
 
-func genHash(identifier string) string {
-	hash_value := md.Sum([]byte(identifier))
+func genHash(identifier string, el_type int) string {
+	bytes := []byte(identifier)
+	bytes = append(bytes, byte(el_type))
+	hash_value := md.Sum(bytes)
 	return fmt.Sprintf("%x", hash_value)
 }

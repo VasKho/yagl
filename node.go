@@ -12,7 +12,7 @@ type Arcs map[string]*Node
 
 // Create node
 func NewNode(identifier string, el_type int) (*Node, string) {
-	hash := genHash(identifier)
+	hash := genHash(identifier, el_type)
 	parent, child := make(Arcs), make(Arcs)
 	new_node := &Node{parent, child, el_type, identifier}
 	return new_node, hash

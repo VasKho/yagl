@@ -44,6 +44,9 @@ func TestAddSameNodeDiffType(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
+	test_1 := context.GetNodeAddr("test", yagl.Node_t)
+	test_2 := context.GetNodeAddr("test", yagl.Node_t|yagl.Const_t)
+	if test_1 == test_2 { t.Fail() }
 }
 
 func TestAddNoIdtfNode(t *testing.T) {
