@@ -124,12 +124,12 @@ func (context *Context) AddArc(begin, end *Node, el_type int) error {
 	begin.RLock()
 	if begin.IsEmpty() {
 		defer begin.RUnlock()
-		return fmt.Errorf("Error: Unknown key %s", begin.identifier)
+		return fmt.Errorf("Error: Begin node is out of context")
 	}
 	end.RLock()
 	if end.IsEmpty() {
 		defer end.RUnlock()
-		return fmt.Errorf("Error: Unknown key %s", end.identifier)
+		return fmt.Errorf("Error: End node is out of context")
 	}
 	begin.RUnlock()
 	end.RUnlock()
@@ -140,7 +140,7 @@ func (context *Context) AddArc(begin, end *Node, el_type int) error {
 	end.RLock()
 	context.Lock()
 	context.unnamed_num++
-	new_node, hash := NewNode("unnamed_"+fmt.Sprintf("%d", context.unnamed_num), el_type)
+	new_node, hash := NewNode("unnamed_" + fmt.Sprintf("%d", context.unnamed_num), el_type)
 	context.Unlock()
 	context.AddNode("unnamed_" + fmt.Sprintf("%d", context.unnamed_num), el_type)
 	begin.child[hash] = new_node
@@ -191,12 +191,12 @@ func (context *Context) RemoveArc(begin, end *Node, el_type int) error {
 	begin.RLock()
 	if begin.IsEmpty() {
 		defer begin.RUnlock()
-		return fmt.Errorf("Error: Unknown begin node")
+		return fmt.Errorf("Error: Begin node is out of context")
 	}
 	end.RLock()
 	if end.IsEmpty() {
 		defer end.RUnlock()
-		return fmt.Errorf("Error: Unknown end node")
+		return fmt.Errorf("Error: End node is out of context")
 	}
 	arc, arc_addr := context.GetArc(begin, end, el_type), context.GetArcAddr(begin, end, el_type)
 	if arc_addr != "" {
