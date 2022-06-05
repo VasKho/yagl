@@ -46,7 +46,9 @@ func TestAddSameNodeDiffType(t *testing.T) {
 	}
 	test_1 := context.GetNodeAddr("test", yagl.Node_t)
 	test_2 := context.GetNodeAddr("test", yagl.Node_t|yagl.Const_t)
-	if test_1 == test_2 { t.Fail() }
+	if test_1 == test_2 {
+		t.Fail()
+	}
 }
 
 func TestAddNoIdtfNode(t *testing.T) {
@@ -88,7 +90,20 @@ func TestAddArc(t *testing.T) {
 	a := context.GetNode("a", yagl.Node_t)
 	b := context.GetNode("b", yagl.Node_t)
 	err := context.AddArc(a, b, yagl.Arc_t)
-	if err != nil {
+	if err != nil || context.GetSize() != 3 {
+		t.Fail()
+	}
+}
+
+func TestGetArc(t *testing.T) {
+	context := yagl.NewContext()
+	context.AddNode("a", yagl.Node_t)
+	context.AddNode("b", yagl.Node_t)
+	a := context.GetNode("a", yagl.Node_t)
+	b := context.GetNode("b", yagl.Node_t)
+	context.AddArc(a, b, yagl.Arc_t)
+	arc := context.GetArc(a, b, yagl.Arc_t)
+	if arc.IsEmpty() {
 		t.Fail()
 	}
 }
@@ -101,7 +116,7 @@ func TestAddSameArc(t *testing.T) {
 	b := context.GetNode("b", yagl.Node_t)
 	context.AddArc(a, b, yagl.Arc_t)
 	err := context.AddArc(a, b, yagl.Arc_t)
-	if err != nil {
+	if err != nil || context.GetSize() != 3 {
 		t.Fail()
 	}
 }
@@ -113,7 +128,7 @@ func TestAddNodeTypeArc(t *testing.T) {
 	a := context.GetNode("a", yagl.Node_t)
 	b := context.GetNode("b", yagl.Node_t)
 	err := context.AddArc(a, b, yagl.Node_t|yagl.Const_t)
-	if err == nil {
+	if err == nil || context.GetSize() != 2 {
 		t.Fail()
 	}
 }
