@@ -1,7 +1,10 @@
 package yagl
 
-import md "crypto/md5"
-import "fmt"
+import (
+	md "crypto/md5"
+	"fmt"
+	"sync"
+)
 
 const (
 	// Element types
@@ -23,6 +26,11 @@ const (
 	Norole_t int = 0x80
 	Class_t  int = 0x100
 )
+
+type Exchange[T any] struct {
+	Result chan T
+	Wg *sync.WaitGroup
+}
 
 func genHash(identifier string, el_type int) string {
 	bytes := []byte(identifier)

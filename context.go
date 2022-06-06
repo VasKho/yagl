@@ -20,89 +20,122 @@ func NewContext() *Context {
 }
 
 // Get all nodes from context
-func (context Context) GetNodes() Arcs {
-	return context.nodes
+func (context *Context) GetNodes(exchange *Exchange[Arcs]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
+	defer context.RUnlock()
+	context.RLock()
+	exchange.Result <-context.nodes
 }
 
 // Get number of nodes in context
-func (context Context) GetSize() int {
+func (context *Context) GetSize() int {
+	defer context.RUnlock()
+	context.RLock()
 	return context.size
 }
 
 // Get node by identifier
-func (context Context) GetNode(identifier string, el_type int) *Node {
+func (context *Context) GetNode(identifier string, el_type int, exchange *Exchange[*Node]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	defer context.RUnlock()
 	hash := genHash(identifier, el_type)
 	context.RLock()
 	if node, ok := context.nodes[hash]; ok {
-		return node
+		exchange.Result <-node
+		return
 	}
-	return &Node{}
+	exchange.Result <-&Node{}	
 }
 
 // Get node address by identifier
-func (context Context) GetNodeAddr(identifier string, el_type int) string {
+func (context *Context) GetNodeAddr(identifier string, el_type int, exchange *Exchange[string]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	defer context.RUnlock()
 	hash := genHash(identifier, el_type)
 	context.RLock()
 	if _, ok := context.nodes[hash]; ok {
-		return hash
+		exchange.Result <-hash
+		return
 	}
-	return ""
+	exchange.Result <-""
 }
 
 // Get arc by its begin and end nodes
-func (context Context) GetArc(begin, end *Node, el_type int) *Node {
+func (context *Context) GetArc(begin, end *Node, el_type int, exchange *Exchange[*Node]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	defer begin.RUnlock()
 	defer end.RUnlock()
 	defer context.RUnlock()
 	begin.RLock()
 	end.RLock()
 	if begin.IsEmpty() {
-		return &Node{}
+		exchange.Result <-&Node{}
+		return
 	}
 	if end.IsEmpty() {
-		return &Node{}
+		exchange.Result <-&Node{}
+		return
 	}
 	context.RLock()
 	for index_1, arc_1 := range begin.child {
 		for index_2 := range end.parent {
 			if index_1 == index_2 && arc_1.el_type == el_type {
-				return arc_1
+				exchange.Result <-arc_1
+				return
 			}
 		}
 	}
-	return &Node{}
+	exchange.Result <-&Node{}
 }
 
 // Get arc address by its begin and end nodes
-func (context Context) GetArcAddr(begin, end *Node, el_type int) string {
+func (context *Context) GetArcAddr(begin, end *Node, el_type int, exchange *Exchange[string]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	defer begin.RUnlock()
 	defer end.RUnlock()
 	defer context.RUnlock()
 	begin.RLock()
 	end.RLock()
 	if begin.IsEmpty() {
-		return ""
+		exchange.Result <-""
+		return
 	}
 	if end.IsEmpty() {
-		return ""
+		exchange.Result <-""
+		return
 	}
 	context.RLock()
 	for index_1, arc_1 := range begin.child {
 		for index_2 := range begin.parent {
 			if index_1 == index_2 && arc_1.el_type == el_type {
-				return index_1
+				exchange.Result <-index_1
+				return
 			}
 		}
 	}
-	return ""
+	exchange.Result <-""
 }
 
 // Add new node to context
-func (context *Context) AddNode(identifier string, el_type int) error {
-	if !context.GetNode(identifier, el_type).IsEmpty() {
-		return fmt.Errorf("Error: Key %s already exists", identifier)
+func (context *Context) AddNode(identifier string, el_type int, exchange *Exchange[error]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
+	exch := Exchange[*Node]{make(chan *Node), nil}
+	go context.GetNode(identifier, el_type, &exch)
+	if !(<-exch.Result).IsEmpty() {
+		exchange.Result <-fmt.Errorf("AddNode: Key %s already exists", identifier)
+		return
 	}
 	if identifier == "" {
 		identifier = "unnamed_" + fmt.Sprintf("%d", context.unnamed_num)
@@ -113,28 +146,35 @@ func (context *Context) AddNode(identifier string, el_type int) error {
 	context.nodes[hash] = new_node
 	context.size++
 	context.Unlock()
-	return nil
 }
 
 // Create new arc of given type between two nodes
-func (context *Context) AddArc(begin, end *Node, el_type int) error {
+func (context *Context) AddArc(begin, end *Node, el_type int, exchange *Exchange[error]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	if el_type&Node_t != 0 {
-		return fmt.Errorf("Error: Unable to create arc of Node_t type")
+		exchange.Result <-fmt.Errorf("AddArc: Unable to create arc of Node_t type")
+		return
 	}
 	begin.RLock()
 	if begin.IsEmpty() {
 		defer begin.RUnlock()
-		return fmt.Errorf("Error: Begin node is out of context")
+		exchange.Result <-fmt.Errorf("AddArc: Begin node is out of context")
+		return
 	}
 	end.RLock()
 	if end.IsEmpty() {
 		defer end.RUnlock()
-		return fmt.Errorf("Error: End node is out of context")
+		exchange.Result <-fmt.Errorf("AddArc: End node is out of context")
+		return
 	}
 	begin.RUnlock()
 	end.RUnlock()
-	if !context.GetArc(begin, end, el_type).IsEmpty() {
-		return nil
+	get_res := Exchange[*Node]{make(chan *Node), nil}
+	go context.GetArc(begin, end, el_type, &get_res)
+	if !(<-get_res.Result).IsEmpty() {
+		return
 	}
 	begin.RLock()
 	end.RLock()
@@ -142,19 +182,29 @@ func (context *Context) AddArc(begin, end *Node, el_type int) error {
 	context.unnamed_num++
 	new_node, hash := NewNode("unnamed_" + fmt.Sprintf("%d", context.unnamed_num), el_type)
 	context.Unlock()
-	context.AddNode("unnamed_" + fmt.Sprintf("%d", context.unnamed_num), el_type)
+	add_node_res := Exchange[error]{make(chan error, 2), &sync.WaitGroup{}}
+	add_node_res.Wg.Add(1)
+	go context.AddNode("unnamed_" + fmt.Sprintf("%d", context.unnamed_num), el_type, &add_node_res)
+	add_node_res.Wg.Wait()
 	begin.child[hash] = new_node
 	end.parent[hash] = new_node
 	begin.RUnlock()
 	end.RUnlock()
-	return nil
 }
 
 // Remove node by its identifier
-func (context *Context) RemoveNode(identifier string, el_type int) error {
-	node_1, addr := context.GetNode(identifier, el_type), context.GetNodeAddr(identifier, el_type)
+func (context *Context) RemoveNode(identifier string, el_type int, exchange *Exchange[error]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
+	node_res := Exchange[*Node]{make(chan *Node), nil}
+	addr_res := Exchange[string]{make(chan string), nil}
+	go context.GetNode(identifier, el_type, &node_res)
+	go context.GetNodeAddr(identifier, el_type, &addr_res)
+	node_1, addr := <-node_res.Result, <-addr_res.Result
 	if node_1.IsEmpty() {
-		return fmt.Errorf("Error: Unknown key %s", identifier)
+		exchange.Result <-fmt.Errorf("RemoveNode: Unknown key %s", identifier)
+		return
 	}
 	node_1.Lock()
 	for _, node := range node_1.parent {
@@ -162,7 +212,7 @@ func (context *Context) RemoveNode(identifier string, el_type int) error {
 		for _, nodes_parent := range node.parent {
 			nodes_parent.Lock()
 			if nodes_parent.el_type&Node_t != 0 {
-				context.RemoveArc(nodes_parent, node_1, node.el_type)
+				go context.RemoveArc(nodes_parent, node_1, node.el_type, nil)
 			}
 			nodes_parent.Unlock()
 		}
@@ -173,7 +223,7 @@ func (context *Context) RemoveNode(identifier string, el_type int) error {
 		for _, nodes_child := range node.child {
 			nodes_child.Lock()
 			if nodes_child.el_type&Node_t != 0 {
-				context.RemoveArc(node_1, nodes_child, node.el_type)
+				go context.RemoveArc(node_1, nodes_child, node.el_type, nil)
 			}
 			nodes_child.Unlock()
 		}
@@ -183,22 +233,30 @@ func (context *Context) RemoveNode(identifier string, el_type int) error {
 	context.Lock()
 	delete(context.nodes, addr)
 	context.Unlock()
-	return nil
 }
 
 // Remove arc by its begin, end and type
-func (context *Context) RemoveArc(begin, end *Node, el_type int) error {
+func (context *Context) RemoveArc(begin, end *Node, el_type int, exchange *Exchange[error]) {
+	if exchange != nil {
+		if exchange.Wg != nil { defer exchange.Wg.Done() }
+	}
 	begin.RLock()
 	if begin.IsEmpty() {
 		defer begin.RUnlock()
-		return fmt.Errorf("Error: Begin node is out of context")
+		exchange.Result <-fmt.Errorf("RemoveArc: Begin node is out of context")
+		return
 	}
 	end.RLock()
 	if end.IsEmpty() {
 		defer end.RUnlock()
-		return fmt.Errorf("Error: End node is out of context")
+		exchange.Result <-fmt.Errorf("RemoveArc: End node is out of context")
+		return
 	}
-	arc, arc_addr := context.GetArc(begin, end, el_type), context.GetArcAddr(begin, end, el_type)
+	arc_res := Exchange[*Node]{make(chan *Node), nil}
+	arc_addr_res := Exchange[string]{make(chan string), nil}
+	go context.GetArc(begin, end, el_type, &arc_res)
+	go context.GetArcAddr(begin, end, el_type, &arc_addr_res)
+	arc, arc_addr := <-arc_res.Result, <-arc_addr_res.Result
 	if arc_addr != "" {
 		arc.Lock()
 		for hash, node := range arc.parent {
@@ -208,10 +266,10 @@ func (context *Context) RemoveArc(begin, end *Node, el_type int) error {
 				delete(arc.parent, hash)
 			} else {
 				for _, parent := range node.parent {
-					context.RemoveArc(parent, arc, node.el_type)
+					go context.RemoveArc(parent, arc, node.el_type, nil)
 				}
 				for _, child := range node.child {
-					context.RemoveArc(arc, child, node.el_type)
+					go context.RemoveArc(arc, child, node.el_type, nil)
 				}
 			}
 			node.Unlock()
@@ -223,10 +281,10 @@ func (context *Context) RemoveArc(begin, end *Node, el_type int) error {
 				delete(arc.child, hash)
 			} else {
 				for _, parent := range node.parent {
-					context.RemoveArc(parent, arc, node.el_type)
+					go context.RemoveArc(parent, arc, node.el_type, nil)
 				}
 				for _, child := range node.child {
-					context.RemoveArc(arc, child, node.el_type)
+					go context.RemoveArc(arc, child, node.el_type, nil)
 				}
 			}
 			node.Unlock()
@@ -239,5 +297,4 @@ func (context *Context) RemoveArc(begin, end *Node, el_type int) error {
 		begin.RUnlock()
 		end.RUnlock()
 	}
-	return nil
 }
