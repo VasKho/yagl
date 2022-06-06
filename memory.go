@@ -29,7 +29,7 @@ const (
 
 type Exchange[T any] struct {
 	Result chan T
-	Wg *sync.WaitGroup
+	Wg     *sync.WaitGroup
 }
 
 func genHash(identifier string, el_type int) string {
